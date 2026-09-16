@@ -1,0 +1,38 @@
+# Kedada · frontend en el homelab
+#
+#   cp .env.example .env     # pon el host de tu Worker
+#   docker compose up -d
+#
+# Sigue el patrón del resto de apps: sin puertos publicados, unido a la red
+# externa proxy_network, y el reverse_proxy le manda el tráfico del subdominio.
+
+services:
+  kedada:
+    image: nginx:1.27-alpine
+    container_name: kedada
+    restart: unless-stopped
+    environment:
+      # Host del Worker, sin https:// ni barra final.
+      API_UPSTREAM: ${API_UPSTREAM:?Falta API_UPSTREAM en .env}
+    volumes:
+      - ./public:/usr/share/nginx/html:ro
+      - ./nginx/kedada.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/cabeceras.conf:/etc/nginx/kedada/cabeceras.conf:ro
+    networks:
+      - proxy_network
+    security_opt:
+      - no-new-privileges:true
+    # Endurecimiento extra, pendiente de probar en el VPS antes de activarlo:
+    # read_only: true
+    # tmpfs: [/var/cache/nginx, /var/run, /etc/nginx/conf.d]
+    # cap_drop: [ALL]
+    # cap_add: [CHOWN, SETUID, SETGID, NET_BIND_SERVICE]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+networks:
+  proxy_network:
+    external: true

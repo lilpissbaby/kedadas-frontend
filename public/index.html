@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0B0E1A">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Fiestas, conciertos, tardeos y quedadas cerca de ti, en un mapa.">
+  <title>Kedada · Fiestas cerca de ti</title>
+
+  <link rel="icon" href="icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icono-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/app.css">
+
+  <script src="vendor/leaflet/leaflet.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="saltar" href="#lista-eventos">Saltar a la lista de fiestas</a>
+
+  <div id="mapa" role="application" aria-label="Mapa de fiestas"></div>
+
+  <header class="barra-superior">
+    <a class="marca" href="./" aria-label="Kedada, inicio">
+      <span class="marca-logo" aria-hidden="true">K</span>
+      <span class="marca-texto"><b>Kedada</b><small>Fiestas cerca de ti</small></span>
+    </a>
+    <nav id="filtros" class="filtros" aria-label="Filtros"></nav>
+    <div class="barra-acciones">
+      <button id="boton-localizar" class="boton-redondo" aria-label="Ir a mi ubicación" title="Ir a mi ubicación">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <div id="cuenta"></div>
+    </div>
+  </header>
+
+  <div class="avisos-mapa" aria-live="polite">
+    <div class="aviso-mapa aviso-cargando"><span class="girando" aria-hidden="true"></span> Buscando fiestas…</div>
+    <div class="aviso-mapa aviso-grande">Acércate un poco: sólo buscamos en 50 km a la redonda</div>
+    <div class="aviso-mapa aviso-llena">Hay muchas por aquí: acércate para verlas todas</div>
+    <div class="aviso-mapa aviso-sin-api">Sin conexión con el servidor <button class="enlace" id="reintentar-api">Reintentar</button></div>
+  </div>
+
+  <div id="aviso-ubicacion" class="tarjeta-ubicacion" hidden>
+    <span class="tarjeta-ubicacion-icono" aria-hidden="true">📍</span>
+    <p><b>¿Qué hay cerca de ti?</b><br>Usa tu ubicación para centrar el mapa. No la guardamos.</p>
+    <div class="fila-botones">
+      <button class="btn btn-primario btn-pequeno" data-accion="activar">Usar mi ubicación</button>
+      <button class="btn btn-fantasma btn-pequeno" data-accion="descartar">Ahora no</button>
+    </div>
+  </div>
+
+  <aside id="hoja" class="hoja" aria-labelledby="hoja-titulo">
+    <div id="hoja-cabecera" class="hoja-cabecera">
+      <button id="hoja-asa" class="hoja-asa" aria-controls="lista-eventos" aria-label="Mostrar u ocultar la lista"></button>
+      <div class="hoja-titulos">
+        <h2 id="hoja-titulo">Buscando…</h2>
+        <span id="hoja-resumen" class="hoja-resumen"></span>
+      </div>
+    </div>
+    <div id="lista-eventos" class="hoja-lista" tabindex="-1"></div>
+  </aside>
+
+  <button id="boton-crear" class="boton-crear" aria-label="Crear una fiesta">
+    <span aria-hidden="true">＋</span><span class="boton-crear-texto">Crear fiesta</span>
+  </button>
+
+  <div id="panel-fondo" class="panel-fondo" aria-hidden="true"></div>
+  <section id="panel" class="panel" role="dialog" aria-modal="false" hidden>
+    <button id="panel-cerrar" class="panel-cerrar" aria-label="Cerrar">✕</button>
+    <div id="panel-cuerpo" class="panel-cuerpo"></div>
+  </section>
+
+  <!-- Modo elegir ubicación: chincheta fija en el centro, se mueve el mapa -->
+  <div class="chincheta" aria-hidden="true"><span></span></div>
+  <div id="eligiendo" class="barra-eligiendo" hidden>
+    <p id="eligiendo-texto">Mueve el mapa hasta el sitio exacto</p>
+    <div class="fila-botones">
+      <button class="btn btn-fantasma" data-accion="cancelar-ubicacion">Cancelar</button>
+      <button class="btn btn-secundario btn-icono" data-accion="ubicacion-yo" aria-label="Ir a mi ubicación">◎</button>
+      <button class="btn btn-primario" data-accion="confirmar-ubicacion">Aquí es</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <noscript><div class="sin-js">Kedada necesita JavaScript para mostrar el mapa.</div></noscript>
+</body>
+</html>
