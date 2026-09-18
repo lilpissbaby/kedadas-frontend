@@ -161,6 +161,9 @@ button { cursor: pointer; }
   background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 45%, var(--fondo-2)), var(--fondo-2) 75%);
   border: 2px solid var(--c);
 }
+.burbuja-tipo.con-foto { overflow: hidden; background: var(--fondo-2); }
+.burbuja-tipo.con-foto img, .burbuja-circulo.con-foto img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+.respaldo-emoji { display: grid; place-items: center; width: 100%; height: 100%; }
 .burbuja-tipo.grande { --t: 76px; border-width: 3px; box-shadow: 0 0 0 6px color-mix(in srgb, var(--c) 16%, transparent); }
 
 .punto-vivo {
@@ -229,6 +232,14 @@ button { cursor: pointer; }
 .burbuja-nota::before { width: 8px; height: 8px; left: calc(50% - 8px); bottom: -6px; }
 .burbuja-nota::after { width: 4px; height: 4px; left: calc(50% - 2px); bottom: -11px; }
 .nota-musica { color: var(--c); }
+.burbuja-circulo.con-foto { overflow: hidden; padding: 0; background: var(--fondo-2); }
+/* Con foto, el tipo sigue a la vista: una chapita con el emoji abajo a la izquierda. */
+.burbuja-chapa {
+  position: absolute; left: -5px; bottom: -4px; width: 21px; height: 21px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 11.5px; line-height: 1;
+  background: var(--fondo-2); border: 2px solid var(--c); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.zoom-lejos .burbuja-chapa { display: none; }
 .burbuja-vivo {
   position: absolute; top: -1px; right: -1px; width: 13px; height: 13px; border-radius: 50%;
   background: var(--vivo); border: 2.5px solid var(--fondo);
@@ -451,6 +462,19 @@ button { cursor: pointer; }
 .organizador-cargando { height: 58px; width: 100%; border-radius: var(--r-md); }
 .organizador-anonimo { color: var(--texto-3); font-size: 13px; }
 
+/* --- Portada con foto ---
+   "contain" sobre una copia desenfocada de la propia imagen: un cartel vertical
+   se ve entero y una foto apaisada llena el hueco. */
+.ficha-portada {
+  position: relative; margin: -22px -20px 0; aspect-ratio: 4 / 3; max-height: 46vh; overflow: hidden;
+  border-radius: var(--r-xl) var(--r-xl) 0 0; background: var(--fondo-2);
+}
+.ficha-portada .portada-fondo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(22px) brightness(0.45); transform: scale(1.25); }
+.ficha-portada .portada-imagen { position: relative; width: 100%; height: 100%; object-fit: contain; display: block; }
+.ficha-portada .respaldo-emoji { position: relative; font-size: 64px; }
+.ficha-portada::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(to top, var(--superficie), transparent); pointer-events: none; }
+@media (min-width: 900px) { .ficha-portada { margin: -26px -24px 0; } }
+
 /* --- Música --- */
 .musica { display: flex; flex-direction: column; }
 .reproductor:empty { display: none; }
@@ -507,6 +531,20 @@ button { cursor: pointer; }
 .opcion-tipo-emoji { font-size: 22px; }
 .opcion-tipo:has(input:checked) { color: var(--texto); border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, var(--fondo-2)); }
 .opcion-tipo:has(input:focus-visible) { outline: 2px solid var(--c); outline-offset: 2px; }
+
+.selector-foto { display: flex; align-items: center; gap: 16px; }
+.vista-burbuja {
+  width: 76px; height: 76px; flex: 0 0 auto; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; font-size: 34px;
+  background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 45%, var(--fondo-2)), var(--fondo-2) 75%);
+  border: 3px solid var(--c); box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 15%, transparent);
+}
+.vista-burbuja:not([class*='t-']) { --c: var(--borde-fuerte); }
+.vista-burbuja img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.selector-foto-acciones { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.boton-archivo { cursor: pointer; }
+.boton-archivo:focus-within { outline: 2px solid var(--rosa); outline-offset: 2px; }
+.oculto-visual { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .ubicacion-elegida { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
 .ubicacion-ok { color: var(--vivo); font-weight: 600; }

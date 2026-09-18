@@ -4,7 +4,8 @@ El mapa de fiestas. HTML, CSS y JavaScript sin frameworks ni paso de build:
 lo que hay en `public/` es exactamente lo que se sirve.
 
 Habla con la API de `api-fiestas` y la usa entera: mapa por cercanía, ficha,
-crear, editar y borrar, apuntarse, denunciar, perfiles, login y borrar cuenta.
+crear, editar y borrar (con foto del dispositivo o emoji), apuntarse,
+denunciar, perfiles, login y borrar cuenta.
 
 ## Arrancar en local
 
@@ -42,9 +43,20 @@ CORS y con la cookie funcionando.
 ## Desplegar en el VPS
 
 ```bash
-cp .env.example .env        # API_UPSTREAM=api-fiestas.TU-SUBDOMINIO.workers.dev
+cp .env.example .env        # a qué API se habla
 docker compose up -d
 ```
+
+`.env` decide a dónde va `/api/`:
+
+| API | `API_UPSTREAM` | `API_ESQUEMA` |
+|---|---|---|
+| contenedor `api-fiestas` en el mismo VPS (su docker-compose) | `api-fiestas:8787` | `http` |
+| Worker de Cloudflare | `api-fiestas.TU-SUBDOMINIO.workers.dev` | `https` |
+
+nginx usa el DNS de Docker (`127.0.0.11`), que resuelve el nombre del
+contenedor y también los de fuera. Arranca aunque la API aún no esté
+levantada: hasta entonces `/api/` responde 502.
 
 Sigue el patrón del homelab: sin puertos publicados y unido a `proxy_network`.
 Añade el `.conf` del subdominio en el reverse proxy como con cualquier otra app.
@@ -77,6 +89,7 @@ public/
     mapa.js             Leaflet, burbujas, carga por zona, geolocalización
     lista.js            filtros y lista ordenada (ahora → pronto → luego, por distancia)
     musica.js           enlace de Spotify/YouTube/SoundCloud/Apple → reproductor
+    imagen.js           foto del dispositivo → grande + miniatura, sin metadatos
     sesion.js           quién soy, entrar, salir, borrar cuenta
     ui.js               panel, toasts, confirmaciones
     util.js             plantillas con escape, fechas, distancias
@@ -87,6 +100,7 @@ public/
 nginx/
   kedada.conf.template  servidor + proxy /api (la imagen de nginx rellena ${API_UPSTREAM})
   cabeceras.conf        cabeceras de seguridad y CSP, compartidas con dev.mjs
+  proxy-api.conf        reenvío al Worker, común a /api/ y /api/imagenes/
 scripts/dev.mjs         servidor de desarrollo sin dependencias
 docker-compose.yml
 ```
@@ -127,13 +141,26 @@ resultados como máximo, filtrar en el cliente dejaría fuera fiestas); el de
 seleccionada, lo que pasa ahora, lo que empieza pronto, a lo que vas) y la que
 chocaría con otra se esconde hasta que acercas el mapa.
 
+**Las fotos se preparan en el navegador.** Al elegir una foto se generan dos
+versiones: grande (1080 px) para la ficha y mini (160×160 del centro) para la
+burbuja y las listas. Se recodifican a WebP (JPEG si el navegador no sabe),
+lo que quita el EXIF: las fotos del móvil llevan el GPS de donde se hicieron.
+La API rechaza cualquier imagen que aún lo lleve. La foto se sube al publicar,
+no al elegirla, así que cancelar no deja basura; si la API rechaza otro campo,
+al reintentar se reutiliza la ya subida. Si el servidor no tiene R2 activado,
+el formulario lo dice y la burbuja usa el emoji.
+
+**nginx cachea las imágenes** (`/api/imagenes/`, volumen `kedada_cache_img`):
+son inmutables, así que cada una llega al Worker una sola vez. Sin eso, cada
+vista del mapa serían hasta 100 peticiones al Worker.
+
 **Cada pantalla tiene URL.** `#/evento/:id` se puede compartir, y el botón
 atrás del móvil cierra el panel en vez de salir de la web.
 
 ## Lo que falta (y por qué no está)
 
-- **Fotos o carteles de las fiestas**: la API no tiene dónde guardarlas. Irá con
-  R2 cuando toque, no en Mongo.
+- **Recortar la foto**: la miniatura es el cuadrado central. Si la cara queda
+  fuera, hoy toca elegir otra foto.
 - **Dirección escrita**: la API guarda coordenadas, no calle. "Cómo llegar"
   abre Google Maps con las coordenadas.
 - **Ver todas las fiestas de otra persona**: no hay ruta en la API; el perfil

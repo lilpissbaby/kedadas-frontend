@@ -1,12 +1,13 @@
 import { api, mensajeDe, ErrorApi } from '../api.js'
 import { estado, avisar } from '../estado.js'
-import { TIPOS } from '../tipos.js'
+import { TIPOS, tipoDe } from '../tipos.js'
 import { html, pintar, $, $$, aInputFecha, distanciaM, formatoDistancia } from '../util.js'
 import { toast, esqueleto, pintarError, conBoton } from '../ui.js'
 import { cancionValida, analizarCancion } from '../musica.js'
 import { elegirUbicacion, centrarEn, localizar } from '../mapa.js'
 import { navegar, volverOIr } from '../router.js'
 import { pedirSesion } from '../sesion.js'
+import { prepararImagen, urlImagen, ErrorImagen } from '../imagen.js'
 
 /**
  * Crear y editar una fiesta. Las reglas de validación son las mismas que
@@ -39,6 +40,7 @@ export async function vistaCrear(_, cont) {
     empiezaEn: aInputFecha(inicio),
     terminaEn: aInputFecha(fin),
     cancionUrl: '',
+    foto: { actual: null, nueva: null, quitada: false },
   }
   return montar(cont, { modo: 'crear', valores })
 }
@@ -65,8 +67,10 @@ export async function vistaEditar({ id }, cont, cancelada) {
     empiezaEn: aInputFecha(evento.empiezaEn),
     terminaEn: aInputFecha(evento.terminaEn),
     cancionUrl: evento.cancionUrl ?? '',
+    // actual: la que ya tiene en el servidor · nueva: la elegida ahora · quitada: volver al emoji
+    foto: { actual: evento.imagen ?? null, nueva: null, quitada: false },
   }
-  return montar(cont, { modo: 'editar', id, valores, original: { ...valores } })
+  return montar(cont, { modo: 'editar', id, valores, original: { ...valores, teniaFoto: Boolean(evento.imagen) } })
 }
 
 function montar(cont, { modo, id, valores, original }) {
@@ -85,6 +89,24 @@ function montar(cont, { modo, id, valores, original }) {
           placeholder="Ej. Verbena en la plaza del barrio" autocomplete="off" enterkeyhint="next">
         <span class="campo-error" aria-live="polite"></span>
       </label>
+
+      <div class="campo" data-campo="imagen">
+        <span class="campo-etiqueta">Imagen de la burbuja <small>opcional</small></span>
+        ${estado.salud?.imagenes
+          ? html`<div class="selector-foto">
+              <span class="vista-burbuja" data-vista-burbuja aria-hidden="true"></span>
+              <div class="selector-foto-acciones">
+                <label class="btn btn-secundario boton-archivo">
+                  <span data-texto-foto>📷 Elegir foto</span>
+                  <input type="file" accept="image/*" class="oculto-visual" data-archivo>
+                </label>
+                <button type="button" class="btn btn-fantasma" data-accion="quitar-foto" hidden>Quitar</button>
+              </div>
+            </div>
+            <span class="campo-ayuda">Sale dentro de tu burbuja en el mapa y arriba en la ficha. Si no pones ninguna, se usa el emoji del tipo.</span>`
+          : html`<span class="campo-ayuda">Las fotos no están activadas en este servidor todavía: tu burbuja llevará el emoji del tipo.</span>`}
+        <span class="campo-error" aria-live="polite"></span>
+      </div>
 
       <fieldset class="campo" data-campo="tipo">
         <legend class="campo-etiqueta">Tipo</legend>
@@ -159,6 +181,48 @@ function montar(cont, { modo, id, valores, original }) {
     empiezaEn: form.empiezaEn.value,
     terminaEn: form.terminaEn.value,
     cancionUrl: form.cancionUrl.value.trim(),
+    foto: v.foto,
+  })
+
+  /* --- foto --- */
+  const pintarFoto = () => {
+    const vista = $('[data-vista-burbuja]', form)
+    if (!vista) return
+    const tipo = form.tipo.value || 'particular'
+    vista.className = `vista-burbuja t-${tipo}`
+    const src = v.foto.nueva?.vistaPrevia ?? (!v.foto.quitada ? urlImagen(v.foto.actual?.mini) : '')
+    if (src) {
+      const img = document.createElement('img')
+      img.src = src
+      img.alt = ''
+      vista.replaceChildren(img)
+    } else {
+      vista.textContent = form.tipo.value ? tipoDe(tipo).emoji : '🖼️'
+    }
+    const hayFoto = Boolean(src)
+    $('[data-accion="quitar-foto"]', form).hidden = !hayFoto
+    $('[data-texto-foto]', form).textContent = hayFoto ? '📷 Cambiar foto' : '📷 Elegir foto'
+  }
+  pintarFoto()
+
+  $('[data-archivo]', form)?.addEventListener('change', async (e) => {
+    const archivo = e.target.files?.[0]
+    e.target.value = '' // para poder volver a elegir la misma
+    if (!archivo) return
+    const texto = $('[data-texto-foto]', form)
+    texto.textContent = 'Preparando…'
+    limpiarError(form, 'imagen')
+    try {
+      const preparada = await prepararImagen(archivo)
+      if (v.foto.nueva) URL.revokeObjectURL(v.foto.nueva.vistaPrevia)
+      v.foto.nueva = { ...preparada, idSubido: null }
+      v.foto.quitada = false
+      if (modo === 'crear') borrador = leer()
+    } catch (err) {
+      if (!(err instanceof ErrorImagen)) console.error(err)
+      marcarErrores(form, [{ campo: 'imagen', problema: err instanceof ErrorImagen ? err.message : 'No se ha podido abrir la foto' }])
+    }
+    pintarFoto()
   })
 
   const pintarUbicacion = () => {
@@ -187,7 +251,9 @@ function montar(cont, { modo, id, valores, original }) {
   ayudaCancion()
 
   form.addEventListener('input', (e) => {
+    if (!e.target.name) return
     limpiarError(form, e.target.name === 'tipo' ? 'tipo' : e.target.name)
+    if (e.target.name === 'tipo') pintarFoto()
     if (e.target.name === 'descripcion') $('[data-contador]', form).textContent = `${form.descripcion.value.length}/${DESC_MAX}`
     if (e.target.name === 'cancionUrl') ayudaCancion()
     if (e.target.name === 'empiezaEn') ajustarFin(form)
@@ -200,6 +266,14 @@ function montar(cont, { modo, id, valores, original }) {
 
   form.addEventListener('click', async (e) => {
     const accion = e.target.closest('[data-accion]')?.dataset.accion
+    if (accion === 'quitar-foto') {
+      if (v.foto.nueva) URL.revokeObjectURL(v.foto.nueva.vistaPrevia)
+      v.foto.nueva = null
+      v.foto.quitada = true
+      limpiarError(form, 'imagen')
+      pintarFoto()
+      if (modo === 'crear') borrador = leer()
+    }
     if (accion === 'usar-mi-ubicacion') {
       const p = estado.posicion ?? (await localizar({ volar: false }))
       if (!p) return
@@ -230,8 +304,17 @@ function montar(cont, { modo, id, valores, original }) {
 
     const boton = form.querySelector('[type="submit"]')
     try {
+      // La foto se sube primero y sólo una vez: si luego la API rechaza otro
+      // campo y se reintenta, se reutiliza el id en vez de subirla otra vez.
+      const nueva = v.foto.nueva
+      if (nueva && !nueva.idSubido) {
+        const { id: idImagen } = await conBoton(boton, 'Subiendo foto…', () => api.subirImagen(nueva))
+        nueva.idSubido = idImagen
+      }
+
       if (modo === 'crear') {
         const { evento } = await conBoton(boton, 'Publicando…', () => api.crearEvento(aCuerpo(datos)))
+        if (nueva) URL.revokeObjectURL(nueva.vistaPrevia)
         borrador = null
         estado.eventos.set(evento.id, evento)
         avisar('eventos')
@@ -251,6 +334,8 @@ function montar(cont, { modo, id, valores, original }) {
         volverOIr(`/evento/${id}`)
       }
     } catch (err) {
+      // Si la API no reconoce la foto, la próxima vez se vuelve a subir.
+      if (err.detalles?.some?.((d) => d.campo === 'imagen') && v.foto.nueva) v.foto.nueva.idSubido = null
       if (err instanceof ErrorApi && Array.isArray(err.detalles) && err.detalles.length) {
         marcarErrores(
           form,
@@ -261,7 +346,10 @@ function montar(cont, { modo, id, valores, original }) {
     }
   })
 
-  return null
+  return () => {
+    // Al salir de editar, la vista previa ya no sirve. La de crear se queda con el borrador.
+    if (modo === 'editar' && v.foto.nueva) URL.revokeObjectURL(v.foto.nueva.vistaPrevia)
+  }
 }
 
 /* ---------------- validación y envío ---------------- */
@@ -295,6 +383,7 @@ function aCuerpo(d) {
     empiezaEn: new Date(d.empiezaEn).toISOString(),
     terminaEn: new Date(d.terminaEn).toISOString(),
     cancionUrl: d.cancionUrl || undefined,
+    imagen: d.foto?.nueva?.idSubido || undefined,
   }
 }
 
@@ -311,6 +400,8 @@ function diferencias(o, d) {
   if (d.empiezaEn !== o.empiezaEn) c.empiezaEn = new Date(d.empiezaEn).toISOString()
   if (d.terminaEn !== o.terminaEn) c.terminaEn = new Date(d.terminaEn).toISOString()
   if (d.cancionUrl !== o.cancionUrl) c.cancionUrl = d.cancionUrl || null
+  if (d.foto.nueva?.idSubido) c.imagen = d.foto.nueva.idSubido
+  else if (d.foto.quitada && o.teniaFoto) c.imagen = null
   return c
 }
 

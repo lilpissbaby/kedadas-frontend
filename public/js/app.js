@@ -11,6 +11,7 @@ import { vistaCrear, vistaEditar } from './vistas/formulario.js'
 import { vistaYo, vistaUsuario } from './vistas/perfil.js'
 import { vistaEntrar } from './vistas/entrar.js'
 import { vistaDenuncia } from './vistas/denuncia.js'
+import { vigilarImagenesRotas } from './imagen.js'
 
 /* ---------------- rutas ---------------- */
 
@@ -37,6 +38,7 @@ function pintarCuenta(usuario) {
 /* ---------------- arranque ---------------- */
 
 async function arrancar() {
+  vigilarImagenesRotas()
   iniciarMapa({
     onBurbuja: (id) => {
       // El toque en la burbuja es el gesto que deja sonar la canción.

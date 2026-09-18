@@ -1,5 +1,6 @@
 import { $, html, pintar, iniciales, urlSegura } from './util.js'
 import { tipoDe } from './tipos.js'
+import { urlImagen } from './imagen.js'
 
 /* ------------------------------------------------------------------ *
  *  Toast
@@ -97,9 +98,17 @@ export function avatar(usuario, clase = '') {
   return html`<span class="avatar avatar-letras ${clase}" aria-hidden="true">${iniciales(usuario?.nombre)}</span>`
 }
 
-/** Círculo con el emoji del tipo. El color va por clase (t-bar, t-pub…) por el CSP. */
-export function burbujaTipo(tipo, clase = '') {
-  return html`<span class="burbuja-tipo t-${tipo} ${clase}" aria-hidden="true">${tipoDe(tipo).emoji}</span>`
+/**
+ * Círculo del evento: su foto si la tiene, si no el emoji del tipo. El borde
+ * siempre lleva el color del tipo (por clase t-bar, t-pub…, por el CSP).
+ */
+export function burbujaTipo(tipo, clase = '', imagen = null) {
+  const emoji = tipoDe(tipo).emoji
+  const src = urlImagen(imagen?.mini)
+  if (src) {
+    return html`<span class="burbuja-tipo con-foto t-${tipo} ${clase}" aria-hidden="true"><img src="${src}" alt="" loading="lazy" decoding="async" data-respaldo="${emoji}"></span>`
+  }
+  return html`<span class="burbuja-tipo t-${tipo} ${clase}" aria-hidden="true">${emoji}</span>`
 }
 
 /* ------------------------------------------------------------------ *

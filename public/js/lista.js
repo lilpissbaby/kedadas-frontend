@@ -109,7 +109,7 @@ function pintarLista(lista) {
         ({ e, t, d }) => html`
         <li>
           <a class="fila-evento cuando-${t.clave}" href="#/evento/${e.id}" data-id="${e.id}">
-            ${burbujaTipo(e.tipo)}
+            ${burbujaTipo(e.tipo, '', e.imagen)}
             <span class="fila-evento-info">
               <b>${e.titulo}</b>
               <small>${t.clave === 'ahora' ? html`<i class="punto-vivo"></i>` : ''}${t.texto} · ${tipoDe(e.tipo).nombre}</small>

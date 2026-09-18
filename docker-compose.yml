@@ -1,6 +1,6 @@
 # Kedada · frontend en el homelab
 #
-#   cp .env.example .env     # pon el host de tu Worker
+#   cp .env.example .env     # a qué API se habla (contenedor o Worker)
 #   docker compose up -d
 #
 # Sigue el patrón del resto de apps: sin puertos publicados, unido a la red
@@ -12,12 +12,17 @@ services:
     container_name: kedada
     restart: unless-stopped
     environment:
-      # Host del Worker, sin https:// ni barra final.
+      # Host de la API, sin esquema ni barra final.
       API_UPSTREAM: ${API_UPSTREAM:?Falta API_UPSTREAM en .env}
+      # http para el contenedor api-fiestas, https para el Worker.
+      API_ESQUEMA: ${API_ESQUEMA:-https}
     volumes:
       - ./public:/usr/share/nginx/html:ro
       - ./nginx/kedada.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/cabeceras.conf:/etc/nginx/kedada/cabeceras.conf:ro
+      - ./nginx/proxy-api.conf:/etc/nginx/kedada/proxy-api.conf:ro
+      # Caché de imágenes: sobrevive a reinicios y no hay que volver a pedirlas al Worker.
+      - kedada_cache_img:/var/cache/nginx/kedada_img
     networks:
       - proxy_network
     security_opt:
@@ -32,6 +37,9 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
+
+volumes:
+  kedada_cache_img:
 
 networks:
   proxy_network:

@@ -5,6 +5,7 @@ import { estado, cambiar, avisar } from './estado.js'
 import { tipoDe } from './tipos.js'
 import { estadoTemporal, escapar, debounce, guardado, distanciaM } from './util.js'
 import { toast } from './ui.js'
+import { urlImagen } from './imagen.js'
 
 /**
  * El mapa: Leaflet, las burbujas y la carga de eventos al moverse.
@@ -136,7 +137,7 @@ export async function cargarZona() {
 
 function firmaDe(ev) {
   const t = estadoTemporal(ev).clave
-  return [ev.titulo, ev.tipo, ev.lat, ev.lng, t, Boolean(ev.cancionUrl), estado.apuntado.has(ev.id), ev.esMio].join('|')
+  return [ev.titulo, ev.tipo, ev.lat, ev.lng, t, Boolean(ev.cancionUrl), estado.apuntado.has(ev.id), ev.esMio, ev.imagen?.mini].join('|')
 }
 
 function iconoDe(ev) {
@@ -147,12 +148,18 @@ function iconoDe(ev) {
   if (estado.apuntado.has(ev.id)) clases.push('apuntado')
   if (ev.esMio) clases.push('mio')
 
+  // Con foto: la foto dentro del círculo y el emoji del tipo en una chapita.
+  const foto = urlImagen(ev.imagen?.mini)
+  const circulo = foto
+    ? `<span class="burbuja-circulo con-foto" aria-hidden="true"><img src="${escapar(foto)}" alt="" decoding="async" data-respaldo="${escapar(tipo.emoji)}"></span><span class="burbuja-chapa" aria-hidden="true">${tipo.emoji}</span>`
+    : `<span class="burbuja-circulo" aria-hidden="true">${tipo.emoji}</span>`
+
   return L.divIcon({
     className: 'burbuja-envoltorio',
     // Se escapa todo: el título lo escribe cualquiera.
     html: `<div class="${clases.join(' ')}">
         <span class="burbuja-nota">${ev.cancionUrl ? '<span class="nota-musica" aria-hidden="true">♪</span> ' : ''}${escapar(nota)}</span>
-        <span class="burbuja-circulo" aria-hidden="true">${tipo.emoji}</span>
+        ${circulo}
         ${temporal === 'ahora' ? '<span class="burbuja-vivo" aria-hidden="true"></span>' : ''}
       </div>`,
     iconSize: [46, 46],

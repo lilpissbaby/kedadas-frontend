@@ -141,7 +141,7 @@ function filaEvento(e, { propio = false } = {}) {
   return html`
     <li>
       <a class="fila-evento ${t.clave === 'terminada' ? 'pasada' : ''}" href="#/evento/${e.id}">
-        ${burbujaTipo(e.tipo)}
+        ${burbujaTipo(e.tipo, '', e.imagen)}
         <span class="fila-evento-info">
           <b>${e.titulo}</b>
           <small>${tipoDe(e.tipo).nombre} · ${t.texto}</small>
@@ -195,7 +195,7 @@ export async function vistaUsuario({ id }, cont, cancelada) {
       ${cerca.length
         ? html`<ul class="lista-eventos">${cerca.map((e) => {
             const d = estado.posicion ? formatoDistancia(distanciaM(estado.posicion[0], estado.posicion[1], e.lat, e.lng)) : ''
-            return html`<li><a class="fila-evento" href="#/evento/${e.id}">${burbujaTipo(e.tipo)}
+            return html`<li><a class="fila-evento" href="#/evento/${e.id}">${burbujaTipo(e.tipo, '', e.imagen)}
               <span class="fila-evento-info"><b>${e.titulo}</b><small>${estadoTemporal(e).texto}</small></span>
               <span class="fila-evento-extra">${d}</span></a></li>`
           })}</ul>`

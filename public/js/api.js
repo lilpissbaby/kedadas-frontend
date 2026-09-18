@@ -21,7 +21,7 @@ export class ErrorApi extends Error {
 /** Cualquier 401 lo escucha la app para abrir la pantalla de entrar. */
 export const eventosApi = new EventTarget()
 
-async function pedir(metodo, ruta, { cuerpo, consulta, senal } = {}) {
+async function pedir(metodo, ruta, { cuerpo, formulario, consulta, senal } = {}) {
   let url = `${CONFIG.API_BASE}${ruta}`
   if (consulta) {
     const q = new URLSearchParams()
@@ -35,8 +35,9 @@ async function pedir(metodo, ruta, { cuerpo, consulta, senal } = {}) {
     respuesta = await fetch(url, {
       method: metodo,
       credentials: 'include', // la sesión va en cookie httpOnly
+      // Con FormData el navegador pone él mismo el Content-Type con el boundary.
       headers: cuerpo !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
+      body: formulario ?? (cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined),
       signal: senal,
     })
   } catch (err) {
@@ -81,6 +82,15 @@ export const api = {
   borrarEvento: (id) => pedir('DELETE', `/api/eventos/${encodeURIComponent(id)}`),
   denunciar: (id, motivo, comentario) =>
     pedir('POST', `/api/eventos/${encodeURIComponent(id)}/denuncia`, { cuerpo: { motivo, comentario: comentario || undefined } }),
+
+  /* --- imágenes (R2) --- */
+  /** Sube los dos tamaños y devuelve { id, imagen }. El id se manda luego como `imagen` del evento. */
+  subirImagen: ({ grande, mini }) => {
+    const fd = new FormData()
+    fd.set('grande', grande, grande.type === 'image/jpeg' ? 'grande.jpg' : 'grande.webp')
+    fd.set('mini', mini, mini.type === 'image/jpeg' ? 'mini.jpg' : 'mini.webp')
+    return pedir('POST', '/api/imagenes', { formulario: fd })
+  },
 
   /* --- suscripciones --- */
   apuntarse: (id) => pedir('POST', `/api/eventos/${encodeURIComponent(id)}/suscripcion`),

@@ -79,7 +79,9 @@ function reenviarApi(req, res) {
   const cabeceras = { ...req.headers, host: API.host, 'x-forwarded-host': req.headers.host, 'x-forwarded-proto': 'http' }
 
   const salida = http.request(destino, { method: req.method, headers: cabeceras }, (r) => {
-    res.writeHead(r.statusCode ?? 502, { ...r.headers, 'cache-control': 'no-store' })
+    // Igual que nginx: la API no se cachea, salvo las imágenes (inmutables).
+    const cache = req.url.startsWith('/api/imagenes/') ? {} : { 'cache-control': 'no-store' }
+    res.writeHead(r.statusCode ?? 502, { ...r.headers, ...cache })
     r.pipe(res)
   })
   salida.on('error', (err) => {

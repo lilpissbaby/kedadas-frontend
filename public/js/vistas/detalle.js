@@ -4,6 +4,7 @@ import { tipoDe } from '../tipos.js'
 import { html, pintar, $, estadoTemporal, rangoFechas, formatoDistancia, distanciaM, plural, mesYAnio } from '../util.js'
 import { toast, esqueleto, pintarError, avatar, burbujaTipo, confirmar, conBoton } from '../ui.js'
 import { analizarCancion, crearReproductor } from '../musica.js'
+import { urlImagen } from '../imagen.js'
 import { centrarEn, resaltarBurbuja } from '../mapa.js'
 import { navegar, cerrarPanel } from '../router.js'
 import { pedirSesion } from '../sesion.js'
@@ -78,13 +79,20 @@ function pintarFicha(cont, { evento: ev, organizador, estoyApuntado }, { sonar }
   const cancion = analizarCancion(ev.cancionUrl)
   const dist = estado.posicion ? distanciaM(estado.posicion[0], estado.posicion[1], ev.lat, ev.lng) : null
   const terminada = temporal.clave === 'terminada'
+  const foto = urlImagen(ev.imagen?.grande)
 
   pintar(
     cont,
     html`
     <article class="ficha t-${ev.tipo}" data-id="${ev.id}">
+      ${foto
+        ? html`<figure class="ficha-portada">
+            <img class="portada-fondo" src="${foto}" alt="" aria-hidden="true" decoding="async">
+            <img class="portada-imagen" src="${foto}" alt="Imagen de ${ev.titulo}" decoding="async" data-respaldo="${tipo.emoji}">
+          </figure>`
+        : ''}
       <header class="ficha-cabecera">
-        ${burbujaTipo(ev.tipo, 'grande')}
+        ${foto ? '' : burbujaTipo(ev.tipo, 'grande')}
         <div class="ficha-etiquetas">
           <span class="pastilla pastilla-tipo">${tipo.nombre}</span>
           <span class="pastilla pastilla-${temporal.clave}">${temporal.clave === 'ahora' ? html`<i class="punto-vivo"></i>` : ''}${temporal.texto}</span>

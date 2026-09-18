@@ -6,13 +6,21 @@
 # variables propias de nginx ($host, $remote_addr…) no se tocan porque no
 # existen como variables de entorno.
 #
-# Sirve public/ y reenvía /api/ al Worker de Cloudflare. El navegador ve un
+# Sirve public/ y reenvía /api/ a la API (Worker de Cloudflare o contenedor
+# api-fiestas en la misma red Docker). El navegador ve un
 # solo dominio: la cookie de sesión (SameSite=Lax) funciona y no hay CORS.
 # ======================================================================
 
 limit_req_zone  $binary_remote_addr zone=kedada_web:10m rate=20r/s;
 limit_req_zone  $binary_remote_addr zone=kedada_api:10m rate=8r/s;
+limit_req_zone  $binary_remote_addr zone=kedada_img:10m rate=60r/s;
 limit_conn_zone $binary_remote_addr zone=kedada_conn:10m;
+
+# Caché de imágenes. Son inmutables (cambiar la foto crea otra URL), así que
+# cada una llega al Worker UNA vez y el resto de visitas salen de aquí. Con
+# 100 burbujas por pantalla, sin esto el mapa se comería la cuota gratuita
+# de peticiones del Worker.
+proxy_cache_path /var/cache/nginx/kedada_img levels=1:2 keys_zone=kedada_img:10m max_size=2g inactive=30d use_temp_path=off;
 
 # User-agents que no queremos. Filtro, no defensa: se puede falsear.
 map $http_user_agent $bloqueado {
@@ -64,32 +72,46 @@ server {
     gzip_types text/plain text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml;
 
     # ------------------------------------------------------------------
-    # API → Cloudflare Worker
+    # API → Worker de Cloudflare o contenedor api-fiestas
+    # Con variable + resolver, nginx vuelve a resolver el host cada 30 s
+    # en lugar de quedarse para siempre con la IP del arranque (y arranca
+    # aunque la API todavía no esté levantada).
+    # 127.0.0.11 es el DNS de Docker: resuelve los nombres de los contenedores
+    # de proxy_network y reenvía el resto (workers.dev) al DNS del host.
     # ------------------------------------------------------------------
+    resolver 127.0.0.11 valid=30s ipv6=off;
+    resolver_timeout 5s;
+    set $api_esquema "${API_ESQUEMA}";
+    set $api_upstream "${API_UPSTREAM}";
+
     location /api/ {
         limit_req zone=kedada_api burst=30 nodelay;
-
-        # Con variable + resolver, nginx vuelve a resolver el host cada 5 min
-        # en lugar de quedarse para siempre con la IP del arranque.
-        resolver 1.1.1.1 9.9.9.9 valid=300s ipv6=off;
-        resolver_timeout 5s;
-        set $api_upstream "${API_UPSTREAM}";
-
-        proxy_pass https://$api_upstream;
-        proxy_ssl_server_name on;
-        proxy_ssl_name $api_upstream;
-        proxy_set_header Host $api_upstream;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_connect_timeout 5s;
+        include /etc/nginx/kedada/proxy-api.conf;
         proxy_read_timeout 20s;
 
         # Las respuestas dependen de la cookie: que nadie las cachee.
         proxy_hide_header Cache-Control;
         add_header Cache-Control "no-store" always;
+        include /etc/nginx/kedada/cabeceras.conf;
+    }
+
+    # Imágenes: aquí se suben (POST) y se sirven (GET, cacheadas).
+    location /api/imagenes/ {
+        limit_req zone=kedada_img burst=200 nodelay;
+        client_max_body_size 2m;   # grande (1,5 MB) + mini (100 KB) + multipart
+        include /etc/nginx/kedada/proxy-api.conf;
+        proxy_read_timeout 60s;    # subir desde un móvil con mala cobertura
+
+        proxy_cache kedada_img;
+        proxy_cache_methods GET HEAD;
+        proxy_cache_key $uri;
+        proxy_cache_valid 200 30d;
+        proxy_cache_valid 404 1m;
+        proxy_cache_lock on;
+        # La API manda Vary: Origin y cookies de sesión nada tienen que ver
+        # con una imagen pública: una sola copia para todos.
+        proxy_ignore_headers Vary Set-Cookie;
+        add_header X-Cache $upstream_cache_status always;
         include /etc/nginx/kedada/cabeceras.conf;
     }
 
